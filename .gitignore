@@ -1,0 +1,15 @@
+.claude/
+.codex/
+.agents/
+build/
+output/
+stamps/
+src/
+test/
+build.log
+*.log
+*.tmp
+*~
+jemalloc_smoke
+jemalloc_smoke.c
+CLAUDE.md
