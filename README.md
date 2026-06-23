@@ -28,27 +28,22 @@ Initialize component sources:
 make init-src
 ```
 
-Build the default `linx64v5-linux-musl` toolchain:
+Build the `linx64v5-linux-musl` toolchain:
 
 ```sh
-make -j16
+make WITH_TARGET=linx64v5-linux-musl
 ```
 
-Create a release tarball:
+Package the build output:
 
 ```sh
 make package
 ```
 
-The default install tree is `output/linx_blockisa_llvm_musl`, and the package is written to `output/linx_blockisa_llvm_musl.tar.gz`.
+The default install tree is `output/linx_blockisa_llvm_musl`, and the package is written to:
 
-## Useful Overrides
-
-```sh
-make THREADS=64 ENABLE_CCACHE=on
-make WITH_CPU=v0.43w
-make INSTALL_DIR=/opt/linx-toolchain
-make LLVM_LINX_DIR=/path/to/llvm-project
+```text
+output/linx_blockisa_llvm_musl.tar.gz
 ```
 
-Only `WITH_TARGET=linx64v5-linux-musl` is currently supported by the top-level Makefile.
+Only `WITH_TARGET=linx64v5-linux-musl` is supported by the top-level Makefile.

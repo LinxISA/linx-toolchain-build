@@ -432,7 +432,7 @@ help:
 	@echo "  make package          Package output into output/linx_blockisa_llvm_musl.tar.gz"
 	@echo "  make clean            Remove build outputs"
 	@echo ""
-	@echo "Key overrides:"
+	@echo "Configuration:"
 	@echo "  WITH_TARGET=linx64v5-linux-musl"
 	@echo "  MUSL_SRCDIR=$(SRC_DIR)/musl"
 	@echo "  JEMALLOC_SRCDIR=$(SRC_DIR)/jemalloc"
