@@ -27,7 +27,7 @@ sync_repo() {
   fi
 }
 
-sync_repo "llvm-project" "https://github.com/LinxISA/llvm-project.git" "bisheng-linx"
+sync_repo "llvm-project" "https://github.com/LinxISA/llvm-project.git" "dev-llvm15_56"
 sync_repo "musl" "https://github.com/LinxISA/linx-musl.git" "linx"
 sync_repo "jemalloc" "https://github.com/LinxISA/jemalloc.git" "linx"
 sync_repo "linux-linxisa" "https://github.com/LinxISA/linux.git" "main"

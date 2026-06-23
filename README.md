@@ -8,7 +8,7 @@ This repository contains the top-level build flow for the Linx LLVM + musl toolc
 
 | Directory | Repository | Branch |
 | --- | --- | --- |
-| `src/llvm-project` | `https://github.com/LinxISA/llvm-project.git` | `bisheng-linx` |
+| `src/llvm-project` | `https://github.com/LinxISA/llvm-project.git` | `dev-llvm15_56` |
 | `src/musl` | `https://github.com/LinxISA/linx-musl.git` | `linx` |
 | `src/jemalloc` | `https://github.com/LinxISA/jemalloc.git` | `linx` |
 | `src/linux-linxisa` | `https://github.com/LinxISA/linux.git` | `main` |
