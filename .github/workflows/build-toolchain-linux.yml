@@ -131,6 +131,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
 
     steps:
       - name: Download Linux artifacts
@@ -140,14 +142,31 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
-      - name: Upload assets to GitHub Release
-        uses: softprops/action-gh-release@v2.2.0
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          body: |
-            Linx LLVM + musl toolchain for `linx64v5-linux-musl`.
+      - name: Verify downloaded assets
+        run: |
+          ls -lh release-artifacts/
+          # Make sure the tarball is intact (a truncated download caused
+          # "Request body length does not match content-length header" before).
+          for f in release-artifacts/*.tar.gz; do
+            gzip -t "$f" || { echo "Corrupt artifact: $f"; exit 1; }
+          done
 
-            Linux assets for tag `${{ github.ref_name }}`.
-          files: |
-            release-artifacts/linx_blockisa_llvm_musl-*-linux.tar.gz
+      - name: Create release and upload assets (gh CLI)
+        # gh CLI handles large (>100MB) release assets more reliably than
+        # softprops/action-gh-release, which hit a content-length mismatch on
+        # the 784MB tarball.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Create the release if it does not exist; --clobber overwrites
+          # existing assets of the same name on retry.
+          if ! gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release create "${{ github.ref_name }}" \
+              --title "${{ github.ref_name }}" \
+              --notes "Linx LLVM + musl toolchain for linx64v5-linux-musl. Linux assets for tag ${{ github.ref_name }}." \
+              --verify-tag
+          fi
+          gh release upload "${{ github.ref_name }}" \
+            release-artifacts/linx_blockisa_llvm_musl-*-linux.tar.gz \
+            --clobber
