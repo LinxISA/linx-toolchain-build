@@ -1,0 +1,153 @@
+name: Build Toolchain (Linux)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  schedule:
+    # Nightly cache-warming run (UTC 17:20).
+    - cron: "20 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-toolchain-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LLVM_REPO: https://github.com/LinxISA/llvm-project.git
+  LLVM_REF: dev-llvm15_56
+  # Bump to invalidate stale caches.
+  LLVM_CACHE_FLAVOR: release-v1
+
+jobs:
+  build:
+    name: Build (${{ matrix.arch }}-linux)
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout build repo
+        uses: actions/checkout@v4
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git make cmake ninja-build gcc g++ python3 autoconf m4 pkg-config ccache
+
+      - name: Configure git for component clones
+        run: git config --global --add safe.directory '*'
+
+      - name: Initialize component sources
+        run: make init-src
+
+      - name: Resolve LLVM source SHA
+        id: llvm-source
+        run: |
+          LLVM_SOURCE_SHA="$(git ls-remote "${LLVM_REPO}" "refs/heads/${LLVM_REF}" | awk '{print $1}')"
+          if [ -z "${LLVM_SOURCE_SHA}" ]; then
+            echo "ERROR: failed to resolve ${LLVM_REPO} ${LLVM_REF}" >&2
+            exit 1
+          fi
+          echo "sha=${LLVM_SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Resolved LLVM ${LLVM_REF} -> ${LLVM_SOURCE_SHA}"
+
+      - name: Restore LLVM build cache
+        id: cache-llvm
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/build-llvm-musl
+            stamps/build-llvm-musl
+            output/linx_blockisa_llvm_musl/bin
+            output/linx_blockisa_llvm_musl/lib
+            output/linx_blockisa_llvm_musl/include
+          key: llvm-${{ steps.llvm-source.outputs.sha }}-linux-${{ matrix.arch }}-${{ env.LLVM_CACHE_FLAVOR }}
+
+      - name: Warn on missing cache for tag/nightly runs
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && (startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule')
+        run: |
+          echo "LLVM cache miss on a tag/nightly run."
+          echo "Run this workflow on the default branch first to warm the cache:"
+          echo "llvm-${{ steps.llvm-source.outputs.sha }}-linux-${{ matrix.arch }}-${{ env.LLVM_CACHE_FLAVOR }}"
+
+      - name: Build the toolchain
+        env:
+          ENABLE_CCACHE: 'on'
+          THREADS: '4'
+        run: |
+          export PATH="/usr/lib/ccache:$PATH"
+          make WITH_TARGET=linx64v5-linux-musl
+
+      - name: Save LLVM cache
+        # Only the default branch / nightly warms the cache; tags/releases consume.
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && github.event_name != 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/build-llvm-musl
+            stamps/build-llvm-musl
+            output/linx_blockisa_llvm_musl/bin
+            output/linx_blockisa_llvm_musl/lib
+            output/linx_blockisa_llvm_musl/include
+          key: llvm-${{ steps.llvm-source.outputs.sha }}-linux-${{ matrix.arch }}-${{ env.LLVM_CACHE_FLAVOR }}
+
+      - name: Package the toolchain
+        run: make package
+
+      - name: Rename package with host suffix
+        run: |
+          mv output/linx_blockisa_llvm_musl.tar.gz \
+             output/linx_blockisa_llvm_musl-${{ matrix.arch }}-linux.tar.gz
+          ls -lh output/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linx_toolchain_${{ matrix.arch }}-linux
+          path: output/linx_blockisa_llvm_musl-${{ matrix.arch }}-linux.tar.gz
+          retention-days: 14
+
+      - name: Print build log tail on failure
+        if: failure()
+        run: |
+          if [ -f build.log ]; then
+            echo "===== build.log (last 300 lines) ====="
+            tail -n 300 build.log
+          fi
+
+  release:
+    name: Upload release assets (Linux)
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: linx_toolchain_*-linux
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Upload assets to GitHub Release
+        uses: softprops/action-gh-release@v2.2.0
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            Linx LLVM + musl toolchain for `linx64v5-linux-musl`.
+
+            Linux assets for tag `${{ github.ref_name }}`.
+          files: |
+            release-artifacts/linx_blockisa_llvm_musl-*-linux.tar.gz

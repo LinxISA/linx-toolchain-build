@@ -1,0 +1,146 @@
+name: Build Toolchain (macOS)
+
+# NOTE: This workflow is experimental. The LinxV5 LLVM backend + classic Flang
+# build has not been validated on macOS (especially Apple Silicon). It is kept
+# best-effort (continue-on-error) so a macOS failure does not block the Linux
+# release. Once green, drop continue-on-error and the Linux-only gate.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  schedule:
+    - cron: "40 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-toolchain-mac-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LLVM_REPO: https://github.com/LinxISA/llvm-project.git
+  LLVM_REF: dev-llvm15_56
+  LLVM_CACHE_FLAVOR: release-v1
+
+jobs:
+  build:
+    name: Build (${{ matrix.arch }}-macos)
+    runs-on: ${{ matrix.runner }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Start with Apple Silicon only; add macos-13 (Intel) once green.
+          - arch: arm64
+            runner: macos-14
+
+    steps:
+      - name: Checkout build repo
+        uses: actions/checkout@v4
+
+      - name: Install host build tools
+        run: |
+          brew install cmake ninja ccache m4 autoconf
+
+      - name: Configure git for component clones
+        run: git config --global --add safe.directory '*'
+
+      - name: Initialize component sources
+        run: make init-src
+
+      - name: Resolve LLVM source SHA
+        id: llvm-source
+        run: |
+          LLVM_SOURCE_SHA="$(git ls-remote "${LLVM_REPO}" "refs/heads/${LLVM_REF}" | awk '{print $1}')"
+          if [ -z "${LLVM_SOURCE_SHA}" ]; then
+            echo "ERROR: failed to resolve ${LLVM_REPO} ${LLVM_REF}" >&2
+            exit 1
+          fi
+          echo "sha=${LLVM_SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Resolved LLVM ${LLVM_REF} -> ${LLVM_SOURCE_SHA}"
+
+      - name: Restore LLVM build cache
+        id: cache-llvm
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/build-llvm-musl
+            stamps/build-llvm-musl
+            output/linx_blockisa_llvm_musl/bin
+            output/linx_blockisa_llvm_musl/lib
+            output/linx_blockisa_llvm_musl/include
+          key: llvm-${{ steps.llvm-source.outputs.sha }}-macos-${{ matrix.arch }}-${{ env.LLVM_CACHE_FLAVOR }}
+
+      - name: Build the toolchain
+        env:
+          ENABLE_CCACHE: 'on'
+          THREADS: '4'
+        run: |
+          export PATH="$(brew --prefix)/opt/ccache/libexec:$PATH"
+          make WITH_TARGET=linx64v5-linux-musl
+
+      - name: Save LLVM cache
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && github.event_name != 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/build-llvm-musl
+            stamps/build-llvm-musl
+            output/linx_blockisa_llvm_musl/bin
+            output/linx_blockisa_llvm_musl/lib
+            output/linx_blockisa_llvm_musl/include
+          key: llvm-${{ steps.llvm-source.outputs.sha }}-macos-${{ matrix.arch }}-${{ env.LLVM_CACHE_FLAVOR }}
+
+      - name: Package the toolchain
+        run: make package
+
+      - name: Rename package with host suffix
+        run: |
+          mv output/linx_blockisa_llvm_musl.tar.gz \
+             output/linx_blockisa_llvm_musl-${{ matrix.arch }}-macos.tar.gz
+          ls -lh output/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linx_toolchain_${{ matrix.arch }}-macos
+          path: output/linx_blockisa_llvm_musl-${{ matrix.arch }}-macos.tar.gz
+          retention-days: 14
+
+      - name: Print build log tail on failure
+        if: failure()
+        run: |
+          if [ -f build.log ]; then
+            echo "===== build.log (last 300 lines) ====="
+            tail -n 300 build.log
+          fi
+
+  release:
+    name: Upload release assets (macOS)
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && startsWith(github.ref, 'refs/tags/') && needs.build.result == 'success'
+
+    steps:
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: linx_toolchain_*-macos
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Upload assets to GitHub Release
+        uses: softprops/action-gh-release@v2.2.0
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            Linx LLVM + musl toolchain for `linx64v5-linux-musl`.
+
+            macOS assets for tag `${{ github.ref_name }}` (experimental).
+          files: |
+            release-artifacts/linx_blockisa_llvm_musl-*-macos.tar.gz
