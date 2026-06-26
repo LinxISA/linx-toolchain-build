@@ -162,19 +162,21 @@ jobs:
         if: env.skip_upload != 'true'
         # gh CLI handles large (>100MB) release assets more reliably than
         # softprops/action-gh-release, which hit a content-length mismatch on
-        # the 784MB tarball.
+        # the 784MB tarball. Use --repo because this job does not check out
+        # the repository, so gh cannot infer it from the working directory.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          REPO="${{ github.repository }}"
           # Create the release if it does not exist; --clobber overwrites
           # existing assets of the same name on retry.
-          if ! gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            gh release create "${{ github.ref_name }}" \
+          if ! gh release view "${{ github.ref_name }}" --repo "$REPO" >/dev/null 2>&1; then
+            gh release create "${{ github.ref_name }}" --repo "$REPO" \
               --title "${{ github.ref_name }}" \
               --notes "Linx LLVM + musl toolchain for linx64v5-linux-musl. Linux assets for tag ${{ github.ref_name }}." \
               --verify-tag
           fi
-          gh release upload "${{ github.ref_name }}" \
+          gh release upload "${{ github.ref_name }}" --repo "$REPO" \
             release-artifacts/linx_blockisa_llvm_musl-*-linux.tar.gz \
             --clobber
