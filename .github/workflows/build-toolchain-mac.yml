@@ -43,18 +43,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install host build tools
-        # macOS ships GNU make 3.81, but the kernel headers Makefile requires
-        # make >= 4.0. Install a modern make from brew and put it first on PATH
-        # so every `make` invocation (including inside the kernel tree) uses it.
+        # macOS ships GNU make 3.81 and BSD tar, but the build needs make >= 4.0
+        # (kernel headers Makefile) and GNU tar (--format=gnu in the package step).
+        # Install both from brew and put their gnubin dirs first on PATH so every
+        # make/tar call (including inside the kernel tree and the package step)
+        # uses the GNU versions.
         run: |
-          brew install cmake ninja ccache m4 autoconf make
+          brew install cmake ninja ccache m4 autoconf make gnu-tar
           echo "$(brew --prefix)/opt/make/libexec/gnubin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix)/opt/gnu-tar/libexec/gnubin" >> "$GITHUB_PATH"
 
       - name: Configure git for component clones
         run: git config --global --add safe.directory '*'
 
-      - name: Verify make version
-        run: make --version | head -1
+      - name: Verify make and tar versions
+        run: |
+          make --version | head -1
+          tar --version | head -1
 
       - name: Initialize component sources
         run: make init-src
