@@ -123,7 +123,11 @@ jobs:
     name: Upload release assets (macOS)
     needs: build
     runs-on: ubuntu-latest
-    if: always() && startsWith(github.ref, 'refs/tags/') && needs.build.result == 'success'
+    # Run on tag pushes even though macOS build is allowed to fail
+    # (continue-on-error). Whether to actually upload is decided inside by
+    # checking for a real artifact, so a failed macOS build never creates an
+    # empty release.
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/') }}
     permissions:
       contents: write
 
@@ -138,12 +142,19 @@ jobs:
       - name: Verify downloaded assets
         run: |
           ls -lh release-artifacts/ || true
-          for f in release-artifacts/*.tar.gz; do
-            [ -f "$f" ] || continue
+          shopt -s nullglob
+          files=(release-artifacts/*.tar.gz)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No macOS tarball artifact found; skipping release upload."
+            echo "skip_upload=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          for f in "${files[@]}"; do
             gzip -t "$f" || { echo "Corrupt artifact: $f"; exit 1; }
           done
 
       - name: Create release and upload assets (gh CLI)
+        if: env.skip_upload != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -156,4 +167,4 @@ jobs:
           fi
           gh release upload "${{ github.ref_name }}" \
             release-artifacts/linx_blockisa_llvm_musl-*-macos.tar.gz \
-            --clobber || echo "No macOS assets to upload (build may have been skipped)."
+            --clobber

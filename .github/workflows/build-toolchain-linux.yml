@@ -144,14 +144,22 @@ jobs:
 
       - name: Verify downloaded assets
         run: |
-          ls -lh release-artifacts/
-          # Make sure the tarball is intact (a truncated download caused
+          ls -lh release-artifacts/ || true
+          shopt -s nullglob
+          files=(release-artifacts/*.tar.gz)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No Linux tarball artifacts found; skipping release upload."
+            echo "skip_upload=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          # Make sure each tarball is intact (a truncated download caused
           # "Request body length does not match content-length header" before).
-          for f in release-artifacts/*.tar.gz; do
+          for f in "${files[@]}"; do
             gzip -t "$f" || { echo "Corrupt artifact: $f"; exit 1; }
           done
 
       - name: Create release and upload assets (gh CLI)
+        if: env.skip_upload != 'true'
         # gh CLI handles large (>100MB) release assets more reliably than
         # softprops/action-gh-release, which hit a content-length mismatch on
         # the 784MB tarball.
