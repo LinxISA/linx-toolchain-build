@@ -43,11 +43,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install host build tools
+        # macOS ships GNU make 3.81, but the kernel headers Makefile requires
+        # make >= 4.0. Install a modern make from brew and put it first on PATH
+        # so every `make` invocation (including inside the kernel tree) uses it.
         run: |
-          brew install cmake ninja ccache m4 autoconf
+          brew install cmake ninja ccache m4 autoconf make
+          echo "$(brew --prefix)/opt/make/libexec/gnubin" >> "$GITHUB_PATH"
 
       - name: Configure git for component clones
         run: git config --global --add safe.directory '*'
+
+      - name: Verify make version
+        run: make --version | head -1
 
       - name: Initialize component sources
         run: make init-src
