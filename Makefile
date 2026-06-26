@@ -81,6 +81,23 @@ PUB_LD_OPTION := $(SHARED_SECURE_LDFLAGS) -Wl,-Bsymbolic -Wl,-s
 SECURE_LDFLAGS := $(PUB_LD_OPTION) -rdynamic -Wl,--no-undefined
 EXE_SECURE_LDFLAGS := $(SHARED_SECURE_LDFLAGS) -pie
 
+# Host-side linker flags for building the cross tools (clang/lld) that run on
+# the build host. The -z/-rdynamic/-Wl,--no-undefined/-pie/-Wl,-Bsymbolic
+# options above are GNU-ld specific and rejected by Apple's ld64, so on macOS
+# we fall back to an empty set (Apple's linker turns on PIE/RELRO equivalents
+# by default). Target-side links still use the GNU-style flags because they go
+# through lld.
+HOST_OS := $(shell uname -s)
+ifeq ($(HOST_OS),Darwin)
+HOST_EXE_LINKER_FLAGS :=
+HOST_SHARED_LINKER_FLAGS :=
+HOST_MODULE_LINKER_FLAGS :=
+else
+HOST_EXE_LINKER_FLAGS := $(EXE_SECURE_LDFLAGS)
+HOST_SHARED_LINKER_FLAGS := $(SHARED_SECURE_LDFLAGS)
+HOST_MODULE_LINKER_FLAGS := $(SHARED_SECURE_LDFLAGS)
+endif
+
 ifeq ($(ENABLE_LLVM_DEBUG),on)
 LLVM_BUILD_TYPE := Debug
 LLVM_DEBUG_INFO := -g
@@ -196,9 +213,9 @@ stamps/build-llvm-musl$(LLVM_DEBUG_INFO): $(LLVM_LINX_DIR) $(LLVM_LINX_GIT) stam
 		-DBUILD_SHARED_LIBS=OFF \
 		-DLLVM_ENABLE_PIC=ON \
 		-DCMAKE_C_FLAGS="$(SECURE_CFLAGS)" \
-		-DCMAKE_EXE_LINKER_FLAGS="$(EXE_SECURE_LDFLAGS)" \
-		-DCMAKE_SHARED_LINKER_FLAGS="$(SHARED_SECURE_LDFLAGS)" \
-		-DCMAKE_MODULE_LINKER_FLAGS="$(SHARED_SECURE_LDFLAGS)" 2>&1 | tee -a $(BUILD_LOG)
+		-DCMAKE_EXE_LINKER_FLAGS="$(HOST_EXE_LINKER_FLAGS)" \
+		-DCMAKE_SHARED_LINKER_FLAGS="$(HOST_SHARED_LINKER_FLAGS)" \
+		-DCMAKE_MODULE_LINKER_FLAGS="$(HOST_MODULE_LINKER_FLAGS)" 2>&1 | tee -a $(BUILD_LOG)
 	$(LLVM_MAKE) -C $(BUILD_DIR)/$(notdir $@) 2>&1 | tee -a $(BUILD_LOG)
 	$(LLVM_MAKE) -C $(BUILD_DIR)/$(notdir $@) install 2>&1 | tee -a $(BUILD_LOG)
 	cd $(INSTALL_DIR)/bin && ln -s -f clang $(WITH_TARGET)-clang && ln -s -f clang++ $(WITH_TARGET)-clang++
