@@ -92,10 +92,14 @@ ifeq ($(HOST_OS),Darwin)
 HOST_EXE_LINKER_FLAGS :=
 HOST_SHARED_LINKER_FLAGS :=
 HOST_MODULE_LINKER_FLAGS :=
+TARGET_CMAKE_PLATFORM_FLAGS := -DCMAKE_SYSTEM_NAME=Linux \
+	-DCMAKE_SYSTEM_PROCESSOR=$(RT_ARCH) \
+	-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
 else
 HOST_EXE_LINKER_FLAGS := $(EXE_SECURE_LDFLAGS)
 HOST_SHARED_LINKER_FLAGS := $(SHARED_SECURE_LDFLAGS)
 HOST_MODULE_LINKER_FLAGS := $(SHARED_SECURE_LDFLAGS)
+TARGET_CMAKE_PLATFORM_FLAGS :=
 endif
 
 ifeq ($(ENABLE_LLVM_DEBUG),on)
@@ -309,6 +313,7 @@ stamps/build-libcxx-musl: $(LLVM_LINX_DIR) stamps/build-llvm-musl$(LLVM_DEBUG_IN
 	touch $(INSTALL_DIR)/sysroot/usr/lib/libatomic.a
 	cd $(BUILD_DIR)/$(notdir $@) && \
 		cmake -G "$(LLVM_GENERATOR)" $(LLVM_LINX_DIR)/libcxx \
+			$(TARGET_CMAKE_PLATFORM_FLAGS) \
 			-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)/sysroot/usr \
 			-DCMAKE_BUILD_TYPE=Release \
 			-DCMAKE_C_COMPILER=$(INSTALL_DIR)/bin/clang \
@@ -343,6 +348,7 @@ stamps/build-libcxxabi-musl: $(LLVM_LINX_DIR) stamps/build-llvm-musl$(LLVM_DEBUG
 	mkdir -p $(BUILD_DIR)/$(notdir $@)
 	cd $(BUILD_DIR)/$(notdir $@) && \
 		cmake -G "$(LLVM_GENERATOR)" $(LLVM_LINX_DIR)/libcxxabi \
+			$(TARGET_CMAKE_PLATFORM_FLAGS) \
 			-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)/sysroot/usr \
 			-DCMAKE_BUILD_TYPE=Release \
 			-DCMAKE_C_COMPILER=$(INSTALL_DIR)/bin/clang \
@@ -373,6 +379,7 @@ stamps/build-libunwind-musl: $(LLVM_LINX_DIR) stamps/build-llvm-musl$(LLVM_DEBUG
 	mkdir -p $(BUILD_DIR)/$(notdir $@)
 	cd $(BUILD_DIR)/$(notdir $@) && \
 		cmake -G "$(LLVM_GENERATOR)" $(LLVM_LINX_DIR)/libunwind \
+			$(TARGET_CMAKE_PLATFORM_FLAGS) \
 			-DFORCE_COMPILE_ASM=ON \
 			-DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR)/sysroot/usr \
 			-DCMAKE_BUILD_TYPE=Release \
