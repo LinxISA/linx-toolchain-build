@@ -2,6 +2,9 @@
 
 This repository contains the top-level build flow for the Linx LLVM + musl toolchain.
 
+This is the **main** build track. See [VERSIONS.md](VERSIONS.md) for both
+matched component sets, source commit records, and switching instructions.
+
 ## Components
 
 `make init-src` creates `src/` and checks out the required component repositories:
