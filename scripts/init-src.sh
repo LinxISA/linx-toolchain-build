@@ -27,10 +27,10 @@ sync_repo() {
   fi
 }
 
-sync_repo "llvm-project" "https://github.com/LinxISA/llvm-project.git" "dev-llvm15_56"
-sync_repo "musl" "https://github.com/LinxISA/linx-musl.git" "linx"
+sync_repo "llvm-project" "https://github.com/LinxISA/llvm-project.git" "0.59"
+sync_repo "musl" "https://github.com/LinxISA/linx-musl.git" "0.59"
 sync_repo "jemalloc" "https://github.com/LinxISA/jemalloc.git" "linx"
 sync_repo "linux-linxisa" "https://github.com/LinxISA/linux.git" "main"
-sync_repo "Linx-TileOP-API" "https://github.com/LinxISA/Linx-TileOP-API.git" "linx"
+sync_repo "Linx-TileOP-API" "https://github.com/LinxISA/Linx-TileOP-API.git" "0.59"
 
 echo "Component repositories are ready under ${SRC_DIR}."

@@ -2,7 +2,7 @@
 
 This repository contains the top-level build flow for the Linx LLVM + musl toolchain.
 
-This is the **main** build track. See [VERSIONS.md](VERSIONS.md) for both
+This is the **0.59** build track. See [VERSIONS.md](VERSIONS.md) for both
 matched component sets, source commit records, and switching instructions.
 
 ## Components
@@ -11,11 +11,11 @@ matched component sets, source commit records, and switching instructions.
 
 | Directory | Repository | Branch |
 | --- | --- | --- |
-| `src/llvm-project` | `https://github.com/LinxISA/llvm-project.git` | `dev-llvm15_56` |
-| `src/musl` | `https://github.com/LinxISA/linx-musl.git` | `linx` |
+| `src/llvm-project` | `https://github.com/LinxISA/llvm-project.git` | `0.59` |
+| `src/musl` | `https://github.com/LinxISA/linx-musl.git` | `0.59` |
 | `src/jemalloc` | `https://github.com/LinxISA/jemalloc.git` | `linx` |
 | `src/linux-linxisa` | `https://github.com/LinxISA/linux.git` | `main` |
-| `src/Linx-TileOP-API` | `https://github.com/LinxISA/Linx-TileOP-API.git` | `linx` |
+| `src/Linx-TileOP-API` | `https://github.com/LinxISA/Linx-TileOP-API.git` | `0.59` |
 
 ## Quick Start
 

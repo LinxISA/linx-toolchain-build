@@ -22,7 +22,7 @@ concurrency:
 
 env:
   LLVM_REPO: https://github.com/LinxISA/llvm-project.git
-  LLVM_REF: dev-llvm15_56
+  LLVM_REF: "0.59"
   LLVM_CACHE_FLAVOR: release-v1
 
 jobs:

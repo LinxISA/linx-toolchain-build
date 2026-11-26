@@ -18,7 +18,7 @@ concurrency:
 
 env:
   LLVM_REPO: https://github.com/LinxISA/llvm-project.git
-  LLVM_REF: dev-llvm15_56
+  LLVM_REF: "0.59"
   # Bump to invalidate stale caches.
   LLVM_CACHE_FLAVOR: release-v1
 
